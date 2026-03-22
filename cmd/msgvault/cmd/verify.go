@@ -133,6 +133,9 @@ Examples:
 		if source == nil {
 			fmt.Printf("Gmail account %s not found in database.\n", email)
 			fmt.Println("Run 'sync-full' first to populate the archive.")
+			if dbCorrupt {
+				return fmt.Errorf("database integrity check failed")
+			}
 			return nil
 		}
 
