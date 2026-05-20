@@ -37,7 +37,13 @@ type Store struct {
 	closeCleanup  func()
 }
 
-const defaultSQLiteParams = "?_journal_mode=WAL&_busy_timeout=30000&_synchronous=NORMAL&_foreign_keys=ON"
+// synchronous=FULL + fullfsync=true protects WAL writes against OS/power crashes
+// (NORMAL only protects against process crashes). msgvault is commonly run as a
+// laptop daemon (`msgvault serve`) where sleep/wake, forced reboots, and OOM kills
+// give many opportunities to leave a torn page on disk; the write volume is tiny
+// so the durability cost is negligible. fullfsync is macOS-only (F_FULLFSYNC
+// fcntl) and a no-op on other platforms.
+const defaultSQLiteParams = "?_journal_mode=WAL&_busy_timeout=30000&_synchronous=FULL&_fullfsync=true&_foreign_keys=ON"
 
 // isSQLiteError checks if err is a sqlite3.Error with a message containing substr.
 // This is more robust than strings.Contains on err.Error() because it first

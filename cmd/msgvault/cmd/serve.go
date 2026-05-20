@@ -22,6 +22,7 @@ import (
 	"github.com/wesm/msgvault/internal/search"
 	"github.com/wesm/msgvault/internal/store"
 	"github.com/wesm/msgvault/internal/sync"
+	"github.com/wesm/msgvault/internal/syncerr"
 	"golang.org/x/oauth2"
 )
 
@@ -373,6 +374,13 @@ func runScheduledSync(ctx context.Context, email string, s *store.Store, getOAut
 		// because serve runs as a daemon and cannot open a browser for OAuth.
 		tokenSource, tsErr = oauthMgr.TokenSource(ctx, email)
 		if tsErr != nil {
+			// Distinguish transient network failures (DNS lookup timeout,
+			// dial timeout after laptop sleep/wake, Wi-Fi flap) from real
+			// auth errors. Suggesting reauth on every network blip sends
+			// the user down the wrong path.
+			if syncerr.IsTransientNetwork(tsErr) {
+				return fmt.Errorf("get token source: %w (transient network error; will retry on next schedule)", tsErr)
+			}
 			if oauthMgr.HasToken(email) {
 				return fmt.Errorf("get token source: %w (token may be expired; run 'sync %s' or 'verify %s' from an interactive terminal to re-authorize)", tsErr, email, email)
 			}
